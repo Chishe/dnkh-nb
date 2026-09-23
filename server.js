@@ -5,6 +5,7 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = 8889;
 
+require('dotenv').config();
 const pool = new Pool({
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
@@ -39,8 +40,8 @@ function nonNegativeInteger(value) {
     value !== undefined &&
     Number.isSafeInteger(number) &&
     number >= 0
-      ? number
-      : null;
+    ? number
+    : null;
 }
 
 app.post('/post_gap', async (req, res) => {
@@ -80,7 +81,7 @@ app.get('/get_gap_data', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT DISTINCT ON (nb_pd, core_part_no) *
        FROM gap_data
-       WHERE nb_pd >= CURRENT_DATE - 14
+       WHERE nb_pd::date >= CURRENT_DATE - 14
          AND nb_pd IS NOT NULL
        ORDER BY nb_pd DESC, core_part_no, id DESC`
     );
@@ -98,7 +99,7 @@ app.post('/post_water', async (req, res) => {
   const lk = nonNegativeInteger(leak);
 
   if (!core_part_no || !validDate(nb_date) ||
-      qty === null || lk === null || lk > qty) {
+    qty === null || lk === null || lk > qty) {
     return res.status(400).json({
       message: 'Invalid core_part_no, nb_date, quantity or leak',
     });
@@ -149,7 +150,7 @@ app.get('/get_water', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT *
        FROM water_leak
-       WHERE nb_pd >= CURRENT_DATE - 14
+        WHERE nb_pd::date >= CURRENT_DATE - 14
        ORDER BY nb_pd DESC, id DESC`
     );
 
