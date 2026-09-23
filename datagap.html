@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="picture/Denso.ico">
+  <title>Data Gap | Quality Control System</title>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <a class="brand" href="datagap.html" aria-label="DENSO Quality Control home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span><span class="brand-name">DENSO</span><br><span class="brand-system">Quality Control System</span></span>
+      </a>
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a href="index.html">Scan Monitor</a>
+        <a href="datagap.html" aria-current="page">Data Gap</a>
+        <a href="water.html">Water Test</a>
+      </nav>
+      <div class="header-meta">QC / CORE / 01</div>
+    </div>
+  </header>
+  <main class="page-shell">
+    <div class="page-heading">
+      <div><p class="eyebrow">Inspection record</p><h1>Data Gap</h1><p class="page-description">Record dimensional gap measurements for a core part. The acceptance limit is ≤ 0.10 for every point.</p></div>
+    </div>
+    <section class="panel entry-panel" aria-labelledby="entry-title">
+      <div class="panel-header"><h2 class="panel-title" id="entry-title">New measurement</h2><span class="panel-code">FORM / DG-01</span></div>
+      <div class="panel-body">
+        <div class="entry-grid">
+          <div class="field-grid">
+            <div class="field"><label for="core_part_no">Core part no.</label><input type="text" id="core_part_no" placeholder="e.g. 1234" maxlength="4" autocomplete="off"></div>
+            <div class="field"><label for="core_type">Core type</label><select id="core_type"><option value="11.5D">11.5D</option><option value="16D">16D</option><option value="27D">27D</option></select></div>
+            <div class="field"><label for="nb_pd">Core date</label><input type="date" id="nb_pd"></div>
+          </div>
+          <div class="field-grid measurements">
+            <div class="field"><label for="point_1">Point 01</label><input type="number" id="point_1" placeholder="0.00" step="0.01"></div>
+            <div class="field"><label for="point_2">Point 02</label><input type="number" id="point_2" placeholder="0.00" step="0.01"></div>
+            <div class="field"><label for="point_3">Point 03</label><input type="number" id="point_3" placeholder="0.00" step="0.01"></div>
+            <div class="field"><label for="point_4">Point 04</label><input type="number" id="point_4" placeholder="0.00" step="0.01"></div>
+            <div class="field"><label for="point_5">Point 05</label><input type="number" id="point_5" placeholder="0.00" step="0.01"></div>
+          </div>
+        </div>
+        <div class="action-row"><button class="button-primary" id="save" type="button">Save measurement</button></div>
+      </div>
+    </section>
+    <section class="panel table-section" aria-labelledby="records-title">
+      <div class="panel-header"><h2 class="panel-title" id="records-title">Recent records</h2><span class="count-badge" id="record_count">LAST 14 DAYS</span></div>
+      <div class="table-wrap"><table id="gap_table"><thead><tr><th>Core part no.</th><th>Core type</th><th>Core date</th><th>Point 01</th><th>Point 02</th><th>Point 03</th><th>Point 04</th><th>Point 05</th><th>Judge</th></tr></thead><tbody></tbody></table></div>
+    </section>
+  </main>
+  <script>
+    const dateInput=document.getElementById("nb_pd"); dateInput.value=new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Bangkok"});
+    document.getElementById("save").addEventListener("click",function(){
+      const values=[1,2,3,4,5].map(n=>document.getElementById("point_"+n).value);
+      const corePartNo=document.getElementById("core_part_no").value.trim();
+      if(!corePartNo||values.some(v=>v==="")){alert("Please complete every required field before saving.");return}
+      const data={core_part_no:corePartNo,core_type:document.getElementById("core_type").value,nb_date:dateInput.value,point_1:values[0],point_2:values[1],point_3:values[2],point_4:values[3],point_5:values[4],judge:values.every(v=>Number(v)<=0.1)?"OK":"NG"};
+      fetch("/post_gap",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(()=>{alert("Measurement saved successfully.");location.reload()}).catch(()=>alert("Unable to save the measurement. Please try again."));
+    });
+    function toYMD(v){const d=new Date(v);return isNaN(d)?"":d.toLocaleDateString("en-CA",{timeZone:"Asia/Bangkok"})}
+    fetch("/get_gap_data").then(r=>r.json()).then(data=>{const tbody=document.querySelector("#gap_table tbody");document.getElementById("record_count").textContent=data.length+" RECORDS / 14 DAYS";tbody.innerHTML="";data.forEach(row=>{const tr=document.createElement("tr");const ok=row.judge==="OK";tr.innerHTML=`<td>${row.core_part_no??""}</td><td>${row.core_type??""}</td><td>${toYMD(row.nb_pd)}</td><td>${row.point_1??""}</td><td>${row.point_2??""}</td><td>${row.point_3??""}</td><td>${row.point_4??""}</td><td>${row.point_5??""}</td><td class="status-cell ${ok?"is-ok":"is-ng"}">${row.judge??""}</td>`;tbody.appendChild(tr)})}).catch(()=>{document.getElementById("record_count").textContent="DATA UNAVAILABLE"});
+  </script>
+</body>
+</html>

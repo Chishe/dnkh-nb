@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css"><link rel="icon" href="picture/Denso.ico">
+  <title>Water Leak Test | Quality Control System</title>
+</head>
+<body>
+  <header class="app-header"><div class="header-inner">
+    <a class="brand" href="datagap.html" aria-label="DENSO Quality Control home"><span class="brand-mark" aria-hidden="true"></span><span><span class="brand-name">DENSO</span><br><span class="brand-system">Quality Control System</span></span></a>
+    <nav class="main-nav" aria-label="Primary navigation"><a href="index.html">Scan Monitor</a><a href="datagap.html">Data Gap</a><a href="water.html" aria-current="page">Water Test</a></nav>
+    <div class="header-meta">QC / CORE / 02</div>
+  </div></header>
+  <main class="page-shell">
+    <div class="page-heading"><div><p class="eyebrow">Inspection record</p><h1>Water Leak Test</h1><p class="page-description">Record tested quantity and detected leaks. Results pass when the cumulative leak ratio is ≤ 5.00%.</p></div></div>
+    <section class="panel entry-panel" aria-labelledby="entry-title">
+      <div class="panel-header"><h2 class="panel-title" id="entry-title">New test result</h2><span class="panel-code">FORM / WT-01</span></div>
+      <div class="panel-body">
+        <div class="entry-grid">
+          <div class="field-grid">
+            <div class="field"><label for="core_part_no">Core part no.</label><input type="text" id="core_part_no" placeholder="e.g. 1234" maxlength="4" autocomplete="off"></div>
+            <div class="field"><label for="core_type">Core type</label><select id="core_type"><option value="11.5D">11.5D</option><option value="16D">16D</option><option value="27D">27D</option></select></div>
+            <div class="field"><label for="nb_pd">NB date</label><input type="date" id="nb_pd"></div>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label for="quantity">Test quantity</label><input type="number" id="quantity" placeholder="0" min="1" step="1"><small>Total units included in this test</small></div>
+            <div class="field"><label for="leak">Leak quantity</label><input type="number" id="leak" placeholder="0" min="0" step="1"><small>Units where a leak was detected</small></div>
+          </div>
+        </div>
+        <div class="action-row"><button class="button-primary" id="save" type="button">Save test result</button></div>
+      </div>
+    </section>
+    <section class="panel table-section" aria-labelledby="records-title">
+      <div class="panel-header"><h2 class="panel-title" id="records-title">Recent records</h2><span class="count-badge" id="record_count">LAST 14 DAYS</span></div>
+      <div class="table-wrap"><table id="water_table"><thead><tr><th>Core part no.</th><th>Core type</th><th>NB date</th><th>Quantity</th><th>Leak</th><th>Ratio</th><th>Judge</th></tr></thead><tbody></tbody></table></div>
+    </section>
+  </main>
+  <script>
+    const dateInput=document.getElementById("nb_pd");dateInput.value=new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Bangkok"});
+    document.getElementById("save").addEventListener("click",function(){
+      const corePartNo=document.getElementById("core_part_no").value.trim(),quantity=document.getElementById("quantity").value,leak=document.getElementById("leak").value;
+      if(!corePartNo||!quantity||leak===""){alert("Please complete every required field before saving.");return}
+      if(Number(leak)>Number(quantity)){alert("Leak quantity cannot exceed test quantity.");return}
+      const data={core_part_no:corePartNo,core_type:document.getElementById("core_type").value,nb_date:dateInput.value,quantity,leak};
+      fetch("/post_water",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(()=>{alert("Test result saved successfully.");location.reload()}).catch(()=>alert("Unable to save the test result. Please try again."));
+    });
+    fetch("/get_water").then(r=>r.json()).then(data=>{const tbody=document.querySelector("#water_table tbody");document.getElementById("record_count").textContent=data.length+" RECORDS / 14 DAYS";tbody.innerHTML="";data.forEach(row=>{const tr=document.createElement("tr");const ok=row.judge==="OK";tr.innerHTML=`<td>${row.core_part_no??""}</td><td>${row.core_type??""}</td><td>${row.nb_pd??""}</td><td>${row.quantity??""}</td><td>${row.leak??""}</td><td>${row.ratio??""}%</td><td class="status-cell ${ok?"is-ok":"is-ng"}">${row.judge??""}</td>`;tbody.appendChild(tr)})}).catch(()=>{document.getElementById("record_count").textContent="DATA UNAVAILABLE"});
+  </script>
+</body>
+</html>

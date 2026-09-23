@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css"><link rel="icon" href="picture/Denso.ico">
+  <title>Scan Monitor | Quality Control System</title>
+</head>
+<body>
+  <header class="app-header"><div class="header-inner">
+    <a class="brand" href="index.html" aria-label="DENSO Quality Control home"><span class="brand-mark" aria-hidden="true"></span><span><span class="brand-name">DENSO</span><br><span class="brand-system">Quality Control System</span></span></a>
+    <nav class="main-nav" aria-label="Primary navigation"><a href="index.html" aria-current="page">Scan Monitor</a><a href="datagap.html">Data Gap</a><a href="water.html">Water Test</a></nav>
+    <div class="header-meta">QC / CORE / LIVE</div>
+  </div></header>
+  <main class="page-shell">
+    <div class="page-heading">
+      <div><p class="eyebrow">Live station</p><h1>Scan Monitor</h1><p class="page-description">Monitor incoming core identification and inspection status from the production line.</p></div>
+      <div class="field date-control"><label for="selected_date">NB date</label><input type="date" id="selected_date"></div>
+    </div>
+    <section class="panel" aria-labelledby="scan-title">
+      <div class="panel-header"><h2 class="panel-title" id="scan-title">Current scan</h2><span class="panel-code">WS / LIVE</span></div>
+      <div class="panel-body">
+        <div class="scan-grid">
+          <div class="scan-fields">
+            <div class="field"><label for="part_no">Part no.</label><input type="text" id="part_no" readonly aria-live="polite"></div>
+            <div class="field"><label for="type">Core type</label><input type="text" id="type" readonly></div>
+            <div class="field"><label for="sol">Inspection</label><input type="text" id="sol" readonly></div>
+            <div class="field"><label for="judge">Judge</label><input type="text" id="judge" readonly></div>
+          </div>
+          <div class="scan-actions"><button id="ok_confirm" value="OK" style="visibility:hidden">OK</button><button id="ng_confirm" value="NG" style="visibility:hidden">NG</button></div>
+        </div>
+      </div>
+    </section>
+    <div class="system-message" id="message" role="status" aria-live="assertive">Ready for scan</div>
+  </main>
+  <script>
+    const selectDate=document.getElementById("selected_date"),messageElement=document.getElementById("message");
+    selectDate.value=new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Bangkok"});
+    function setStatus(message,state){messageElement.textContent=message;messageElement.className="system-message"+(state?" is-"+state:"")}
+    function sendConfirmation(data){const ws=new WebSocket("ws://192.168.2.104:1880/data_confirm");ws.onopen=()=>ws.send(JSON.stringify(data));ws.onerror=e=>console.error("WebSocket Error:",e)}
+    const socket=new WebSocket("ws://192.168.2.104:1880/ws/data");
+    socket.onmessage=function(event){
+      const res=JSON.parse(event.data),text=res.text,partNo=res.part_no,judge=res.judge,type=res.type,solution=res.sol,kanban=res.kanban;
+      document.getElementById("part_no").value=text||"";document.getElementById("type").value=type||"";
+      if(solution==="traceability"){document.getElementById("judge").value=judge;document.getElementById("sol").value="Traceability";sendConfirmation({kanban:"",core_id:text,type,judge});setStatus(judge==="OK"?"OK":"NG",judge==="OK"?"ok":"ng")}
+      else if(solution==="water"||solution==="datagap"){
+        document.getElementById("sol").value=solution==="water"?"Water Test":"Data Gap";
+        fetch(solution==="water"?"/post_water_core":"/post_gap_core",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({core_part_no:partNo,nb_date:selectDate.value})}).then(r=>r.json()).then(data=>{if(data.message){alert(data.message);return}document.getElementById("judge").value=data.judge;sendConfirmation({kanban,core_id:text,type,judge:data.judge});setStatus(data.judge==="OK"?"OK":"NG",data.judge==="OK"?"ok":"ng")}).catch(e=>console.error("Error fetching data:",e))
+      } else if(solution==="without"){document.getElementById("judge").value="Bypass";document.getElementById("sol").value="Without Traceability";setStatus("Bypass — without traceability","ok");sendConfirmation({kanban,core_id:text,type,judge:"OK"})}
+      else if(solution==="reset"){document.getElementById("judge").value=judge||"";document.getElementById("sol").value="";setStatus("Ready for scan","")}
+    };
+    socket.onerror=()=>setStatus("Connection unavailable","ng");
+  </script>
+</body>
+</html>
